@@ -1,8 +1,9 @@
 import urllib3
+import json as JSON
 from burpr.models.BurpRequest import BurpRequest
 from burpr.enums.TransportEnum import TransportEnum
 
-def parse_string(string) -> BurpRequest:
+def parse_string(string, json=False) -> BurpRequest:
   data = string.splitlines()
   method = data[0].split(" ")[0]
   path = data[0].split(" ")[1]
@@ -17,9 +18,12 @@ def parse_string(string) -> BurpRequest:
     headers[line.split(": ")[0]] = line.split(": ")[1]
     
   # param
-  for param in data[-1].split("&"):
-    body[param.split("=")[0]] = param.split("=")[1]
-  
+  if json:
+    body = JSON.loads(data[-1])
+  else:
+    for param in data[-1].split("&"):
+      body[param.split("=")[0]] = param.split("=")[1]
+    
   return BurpRequest(
     headers["Host"],
     path,
@@ -30,9 +34,9 @@ def parse_string(string) -> BurpRequest:
     TransportEnum.HTTPS
   )
   
-def parse_file(file):
+def parse_file(file, json=False):
   with open(file, "r") as f:
-    return parse_string(f.read())
+    return parse_string(f.read(), json)
   
 def clone(req: BurpRequest) -> BurpRequest:
   return BurpRequest(req.host, req.path, req.protocol, req.method, req.headers, req.body, req.transport)
