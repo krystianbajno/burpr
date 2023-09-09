@@ -1,4 +1,6 @@
-import models.BurpRequest as BurpRequest
+from urllib3.parse import urlencode
+from burpr.models.BurpRequest import BurpRequest
+from burpr.enums.TransportEnum import TransportEnum
 
 def parse_string(string) -> BurpRequest:
   data = string.splitlines()
@@ -18,13 +20,14 @@ def parse_string(string) -> BurpRequest:
   for param in data[-1].split("&"):
     body[param.split("=")[0]] = param.split("=")[1]
   
-  return BurpRequest.BurpRequest(
+  return BurpRequest(
     headers["Host"],
     path,
     protocol,
     method,
     headers,
-    body
+    body,
+    TransportEnum.HTTPS
   )
   
 def parse_file(file):
@@ -32,4 +35,7 @@ def parse_file(file):
     return parse_string(f.read())
   
 def clone(req: BurpRequest) -> BurpRequest:
-  return BurpRequest(req.host, req.path, req.protocol, req.method, req.headers, req.body)
+  return BurpRequest(req.host, req.path, req.protocol, req.method, req.headers, req.body, req.transport)
+
+def prepare(req: BurpRequest):
+  req.set_header("Content-Length", len(urlencode(req.body)))
