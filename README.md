@@ -11,7 +11,18 @@ Supports parsing requests as strings and as .txt files.
 
 ```python
 import burpr
-req = burpr.parse_string(req)
+
+# Load from string
+req_from_string = burpr.parse_string(req_string)
+
+# Load from file
+req_from_file = burpr.parse_file(req_file_path)
+
+# clone the BurpRequest object
+req_clone = burpr.clone(req_from_file)
+
+# modify the header
+req_clone.set_header("Cookie", "session=modified_session_cookie")
 
 client = httpx.Client(http2=True)
 res = client.post(req.url, headers=req.headers, data=req.body)
@@ -57,7 +68,13 @@ def brute_force_broken_mfa():
   client = httpx.Client(http2=True)
 
   for pin in generate_pin_numbers():
-    req.body["mfa-code"] = pin  
+    # Modify the mfa-code parameter
+    req.set_parameter("mfa-code", pin)
+
+    # Adjust Content-Length to parameter change
+    req.prepare()
+
+    # Send the request
     res = client.post(req.url, headers=req.headers, data=req.body)
 
     print(res.status_code, pin)

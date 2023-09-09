@@ -25,14 +25,17 @@ class BurpRequest:
   def set_headers(self, headers):
     self.headers = headers
 
-  def set_header(self, headerKey, headerValue):
-    self.headers[headerKey] = headerValue
+  def set_header(self, header_key, header_value):
+    self.headers[header_key] = header_value
 
   def set_body(self, body):
     self.body = body
+
+  def set_parameter(self, param_key, param_value):
+    self.body[param_key] = param_value
   
   def set_protocol(self, protocol):
     self.protocol = protocol
 
   def prepare(self):
-    self.set_header("Content-Length", urllib.parse.urlencode(self.body))
+    self.set_header("Content-Length", len(urllib.parse.urlencode(self.body)))
