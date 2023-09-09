@@ -26,7 +26,7 @@ class BurpRequest:
     self.headers = headers
 
   def set_header(self, headerKey, headerValue):
-    self.headers[headerKey, headerValue]
+    self.headers[headerKey] = headerValue
 
   def set_body(self, body):
     self.body = body
