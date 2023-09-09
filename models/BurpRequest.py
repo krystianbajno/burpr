@@ -1,3 +1,5 @@
+import urllib 
+
 class BurpRequest:
   def __init__(self, host="", path="", protocol="", method="", headers={}, body={}):
     self.host = host
@@ -23,8 +25,14 @@ class BurpRequest:
   def set_headers(self, headers):
     self.headers = headers
 
+  def set_header(self, headerKey, headerValue):
+    self.headers[headerKey, headerValue]
+
   def set_body(self, body):
     self.body = body
   
   def set_protocol(self, protocol):
     self.protocol = protocol
+
+  def prepare(self):
+    self.set_header("Content-Length", urllib.parse.urlencode(self.body))

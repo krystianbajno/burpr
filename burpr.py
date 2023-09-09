@@ -1,6 +1,6 @@
 import models.BurpRequest as BurpRequest
 
-def parse_string(string):
+def parse_string(string) -> BurpRequest:
   data = string.splitlines()
   method = data[0].split(" ")[0]
   path = data[0].split(" ")[1]
@@ -31,3 +31,5 @@ def parse_file(file):
   with open(file, "r") as f:
     return parse_string(f.read())
   
+def clone(req: BurpRequest) -> BurpRequest:
+  return BurpRequest(req.host, req.path, req.protocol, req.method, req.headers, req.body)
