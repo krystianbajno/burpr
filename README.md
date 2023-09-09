@@ -1,6 +1,9 @@
 # What is it
 A Burp Suite request parser, used for aid in assessing application security functionality.
 
+# Why I wrote it
+To bypass the throttling 'Burp Suite Community' does to the intruder.
+
 # Usage
 Use burpr.py module to parse the Burp Suite copied request. Then use the created object to extract headers and body.
 
