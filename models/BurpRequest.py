@@ -36,23 +36,35 @@ class BurpRequest:
   def set_method(self, method):
     self.method = method
 
+  def get_headers(self):
+    return self.headers
+  
   def set_headers(self, headers):
     self.headers = headers
 
-  def remove_header(self, header_key):
-    del self.headers[header_key]
+  def get_header(self, header_key):
+    return self.headers.get(header_key)
 
   def set_header(self, header_key, header_value):
     self.headers[header_key] = str(header_value)
 
+  def remove_header(self, header_key):
+    self.headers.pop(header_key)
+
+  def get_body(self):
+    return self.body
+  
   def set_body(self, body):
     self.body = body
 
-  def remove_parameter(self, param_key):
-    del self.body[param_key]
-
+  def get_parameter(self, parameter_key):
+    return self.parameters.get(parameter_key)
+  
   def set_parameter(self, param_key, param_value):
     self.body[param_key] = str(param_value)
+
+  def remove_parameter(self, param_key):
+    self.body.pop(param_key)
   
   def set_protocol(self, protocol):
     self.protocol = protocol
