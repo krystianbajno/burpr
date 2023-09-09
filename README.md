@@ -2,7 +2,7 @@
 A Burp Suite request parser, used for aid in assessing application security functionality.
 
 # Why I wrote it
-To bypass the throttling 'Burp Suite Community' does to the intruder.
+To use Burp Suite captured requests without relying on intruder.
 
 # Installation
 ```
