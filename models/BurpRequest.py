@@ -39,11 +39,17 @@ class BurpRequest:
   def set_headers(self, headers):
     self.headers = headers
 
+  def remove_header(self, header_key):
+    del self.headers[header_key]
+
   def set_header(self, header_key, header_value):
     self.headers[header_key] = str(header_value)
 
   def set_body(self, body):
     self.body = body
+
+  def remove_parameter(self, param_key):
+    del self.body[param_key]
 
   def set_parameter(self, param_key, param_value):
     self.body[param_key] = str(param_value)

@@ -30,8 +30,14 @@ req_clone.set_transport(burpr.transports.HTTP)
 # modify the header
 req_clone.set_header("Cookie", "session=modified_session_cookie")
 
-# modify the body
+# modify the parameter
 req_clone.set_parameter("post-param", "AAABBBCCC")
+
+# remove parameter
+req_clone.remove_parameter("post-param")
+
+# remove header
+req_clone.remove_header("Cookie")
 
 # adjust Content-Length for parameter change
 burpr.prepare(req_clone)
