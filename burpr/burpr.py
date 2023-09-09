@@ -1,4 +1,4 @@
-from urllib3.parse import urlencode
+import urllib3
 from burpr.models.BurpRequest import BurpRequest
 from burpr.enums.TransportEnum import TransportEnum
 
@@ -38,4 +38,4 @@ def clone(req: BurpRequest) -> BurpRequest:
   return BurpRequest(req.host, req.path, req.protocol, req.method, req.headers, req.body, req.transport)
 
 def prepare(req: BurpRequest):
-  req.set_header("Content-Length", len(urlencode(req.body)))
+  req.set_header("Content-Length", len(urllib3.parse.urlencode(req.body)))

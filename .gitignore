@@ -42,11 +42,12 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *,cover
-
+venv
 # Translations
 *.mo
 *.pot
-
+dist
+*.egg-info
 # Django stuff:
 *.log
 
