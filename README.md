@@ -1,3 +1,4 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/a086959259da41d8ad6feebcbb3925b7)](https://app.codacy.com/gh/krystianbajno/burpr?utm_source=github.com&utm_medium=referral&utm_content=krystianbajno/burpr&utm_campaign=Badge_Grade)
 [![CodeFactor](https://www.codefactor.io/repository/github/krystianbajno/burpr/badge)](https://www.codefactor.io/repository/github/krystianbajno/burpr)
 
 # What is it
