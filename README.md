@@ -1,3 +1,5 @@
+[![CodeFactor](https://www.codefactor.io/repository/github/krystianbajno/burpr/badge)](https://www.codefactor.io/repository/github/krystianbajno/burpr)
+
 # What is it
 A Burp Suite request parser, used for aid in assessing application security functionality.
 
