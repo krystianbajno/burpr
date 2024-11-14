@@ -1,4 +1,5 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/krystianbajno/burpr/badge)](https://www.codefactor.io/repository/github/krystianbajno/burpr)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0bfcfae7a9de48e29f60dade3b0b7340)](https://app.codacy.com/gh/krystianbajno/burpr/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 # What is it
 A Burp Suite request parser, used for aid in assessing application security functionality.
