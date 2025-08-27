@@ -10,7 +10,7 @@ authors = [
 ]
 description = "A Burp Suite request parser, used for aid in assessing application security functionality."
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 keywords = ["burp", "suite", "burpsuite", "request", "parser", "security", "testing", "http", "http2"]
 classifiers = [
     "Programming Language :: Python :: 3",
