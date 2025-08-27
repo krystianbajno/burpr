@@ -229,10 +229,10 @@ def from_requests_response(response) -> BurpRequest:
     Returns:
         BurpRequest object
     """
-    return from_requests_prepared(response.request)
+    return _from_requests_prepared(response.request)
 
 
-def from_requests_prepared(prepared_request) -> BurpRequest:
+def _from_requests_prepared(prepared_request) -> BurpRequest:
     """Convert a requests.PreparedRequest to BurpRequest.
     
     Args:
@@ -294,7 +294,7 @@ def from_requests(method: str, url: str, **kwargs) -> BurpRequest:
                           json={"name": "John"},
                           headers={"Authorization": "Bearer $TOKEN$"})
     """
-    from urllib.parse import urlparse, urlencode
+    from urllib.parse import urlparse
     import json
     
     # Parse URL

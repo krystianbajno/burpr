@@ -1,6 +1,6 @@
 from .burpr import (
     parse_string, parse_file, clone, prepare, to_burp_format, 
-    from_curl, from_requests_response, from_requests_prepared,
+    from_curl, from_requests_response,
     from_requests, from_http2, BurpParseError
 )
 from .models.BurpRequest import BurpRequest
@@ -15,7 +15,6 @@ __all__ = [
     'to_burp_format',
     'from_curl',
     'from_requests_response',
-    'from_requests_prepared',
     'from_requests',
     'from_http2',
     'BurpRequest',

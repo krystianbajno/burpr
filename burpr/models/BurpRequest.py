@@ -27,23 +27,6 @@ class BurpRequest:
   def is_http2(self): 
     return self.protocol == ProtocolEnum.HTTP2
 
-  def set_host(self, host):
-    self.host = host
-
-  def set_path(self, path):
-    self.path = path
-
-  def set_method(self, method):
-    self.method = method
-
-  def get_headers(self):
-    return self.headers
-  
-  def set_headers(self, headers):
-    self.headers = headers
-
-  def get_header(self, header_key):
-    return self.headers.get(header_key)
 
   def set_header(self, header_key, header_value):
     # Convert bytes to string using latin-1 if needed
@@ -51,11 +34,6 @@ class BurpRequest:
       header_value = header_value.decode('latin-1')
     self.headers[header_key] = str(header_value)
 
-  def remove_header(self, header_key):
-    self.headers.pop(header_key)
-
-  def get_body(self):
-    return self.body
   
   def set_body(self, body):
     # Convert bytes to string using latin-1 if needed
@@ -63,11 +41,6 @@ class BurpRequest:
       body = body.decode('latin-1')
     self.body = body
   
-  def set_protocol(self, protocol):
-    self.protocol = protocol
-
-  def set_transport(self, transport):
-    self.transport = transport
   
   def __str__(self):
     return f"{self.method} {self.url} {self.protocol}"
@@ -103,16 +76,22 @@ class BurpRequest:
     
     return self
   
-  def to_request(self, session=None):
+  def to_request(self, session=None, auto_prepare=True):
     """Convert to a requests.Request or requests.PreparedRequest object.
     
     Args:
         session: Optional requests.Session to prepare the request with
+        auto_prepare: Whether to automatically calculate Content-Length (default: True)
         
     Returns:
         requests.PreparedRequest if session provided, else requests.Request
     """
     import requests
+    from burpr import burpr
+    
+    # Auto-prepare if requested
+    if auto_prepare:
+        burpr.prepare(self)
     
     # Build the full URL
     url = self.url
@@ -130,11 +109,12 @@ class BurpRequest:
     else:
         return req.prepare()
   
-  def make_request(self, session=None, **kwargs):
+  def make_request(self, session=None, auto_prepare=True, **kwargs):
     """Execute the HTTP request using requests library.
     
     Args:
         session: Optional requests.Session to use
+        auto_prepare: Whether to automatically calculate Content-Length (default: True)
         **kwargs: Additional arguments to pass to requests
         
     Returns:
@@ -152,14 +132,15 @@ class BurpRequest:
         import warnings
         warnings.warn("requests library doesn't support HTTP/2. Consider using httpx instead.")
     
-    prepared = self.to_request(session)
+    prepared = self.to_request(session, auto_prepare=auto_prepare)
     return session.send(prepared, **kwargs)
   
-  def make_httpx_request(self, client=None, **kwargs):
+  def make_httpx_request(self, client=None, auto_prepare=True, **kwargs):
     """Execute the HTTP request using httpx library (supports HTTP/2).
     
     Args:
         client: Optional httpx.Client to use
+        auto_prepare: Whether to automatically calculate Content-Length (default: True)
         **kwargs: Additional arguments to pass to httpx
         
     Returns:
@@ -172,6 +153,11 @@ class BurpRequest:
     
     if client is None:
         client = httpx.Client(http2=self.is_http2)
+    
+    # Auto-prepare if requested
+    if auto_prepare:
+        from burpr import burpr
+        burpr.prepare(self)
     
     return client.request(
         method=self.method,

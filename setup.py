@@ -7,7 +7,7 @@ def read(fname):
 
 setup(
     name = "burpr",
-    version = "0.1.0",
+    version = "0.3.0",
     author = "Krystian Bajno",
     author_email = "krystian.bajno@gmail.com",
     description = ("A Burp Suite request parser, used for aid in assessing application security functionality."),
