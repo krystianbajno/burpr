@@ -46,6 +46,9 @@ class BurpRequest:
     return self.headers.get(header_key)
 
   def set_header(self, header_key, header_value):
+    # Convert bytes to string using latin-1 if needed
+    if isinstance(header_value, bytes):
+      header_value = header_value.decode('latin-1')
     self.headers[header_key] = str(header_value)
 
   def remove_header(self, header_key):
@@ -55,6 +58,9 @@ class BurpRequest:
     return self.body
   
   def set_body(self, body):
+    # Convert bytes to string using latin-1 if needed
+    if isinstance(body, bytes):
+      body = body.decode('latin-1')
     self.body = body
   
   def set_protocol(self, protocol):
@@ -116,7 +122,7 @@ class BurpRequest:
         method=self.method,
         url=url,
         headers=self.headers.copy(),
-        data=self.body if self.body else None
+        data=self.body.encode('latin-1') if self.body else None
     )
     
     if session:
@@ -171,6 +177,6 @@ class BurpRequest:
         method=self.method,
         url=self.url,
         headers=self.headers,
-        content=self.body if self.body else None,
+        content=self.body.encode('latin-1') if self.body else None,
         **kwargs
     )

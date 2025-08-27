@@ -8,8 +8,12 @@ class BurpParseError(Exception):
     pass
 
 
-def parse_string(string: str) -> BurpRequest:
+def parse_string(string: str | bytes) -> BurpRequest:
     """Parse a Burp Suite HTTP request string into a BurpRequest object."""
+    # Convert bytes to string using latin-1 if needed
+    if isinstance(string, bytes):
+        string = string.decode('latin-1')
+    
     if not string.strip():
         raise BurpParseError("Empty request string")
     
@@ -17,14 +21,14 @@ def parse_string(string: str) -> BurpRequest:
     if not lines:
         raise BurpParseError("Invalid request format")
     
-    # Parse request line
-    request_line_match = re.match(r'^(\w+)\s+([^\s]+)\s+(HTTP/[\d.]+)$', lines[0])
-    if not request_line_match:
-        raise BurpParseError(f"Invalid request line: {lines[0]}")
+    parts = lines[0].split(" ", 2)
     
-    method = request_line_match.group(1)
-    full_path = request_line_match.group(2)
-    protocol = request_line_match.group(3)
+    if len(parts) < 3:
+      raise BurpParseError(f"Invalid request line: {lines[0]}")
+    
+    method, full_path, protocol = parts[0], parts[1], parts[2]
+    
+    full_path = re.sub(r"\s+", "%20", full_path)
     
     # Convert protocol string to enum
     protocol_enum = ProtocolEnum.HTTP1_1  # Default
@@ -43,9 +47,13 @@ def parse_string(string: str) -> BurpRequest:
             break
         
         # Handle headers with or without space after colon
-        header_match = re.match(r'^([^:]+):\s*(.*)$', line)
+        header_match = re.match(r'^([^:]+):(.*)$', line)
         if header_match:
-            headers[header_match.group(1)] = header_match.group(2)
+            # Strip only one leading space if present (common in HTTP)
+            value = header_match.group(2)
+            if value.startswith(' '):
+                value = value[1:]
+            headers[header_match.group(1)] = value
         else:
             raise BurpParseError(f"Invalid header format: {line}")
     
@@ -79,8 +87,9 @@ def parse_string(string: str) -> BurpRequest:
   
 def parse_file(file: str) -> BurpRequest:
     """Parse a Burp Suite HTTP request from a file."""
-    with open(file, "r", encoding="utf-8") as f:
-        return parse_string(f.read())
+    with open(file, "rb") as f:
+        # Read as bytes and decode with latin-1 to preserve all byte values
+        return parse_string(f.read().decode('latin-1'))
 
 
 def clone(req: BurpRequest) -> BurpRequest:
@@ -99,9 +108,9 @@ def clone(req: BurpRequest) -> BurpRequest:
 
 def prepare(req: BurpRequest) -> None:
     """Prepare request by setting appropriate headers."""
-    # Set Content-Length based on body
+    # Set Content-Length based on body bytes (latin-1 encoding)
     if req.body:
-        req.set_header("Content-Length", str(len(req.body)))
+        req.set_header("Content-Length", str(len(req.body.encode('latin-1'))))
     else:
         req.set_header("Content-Length", "0")
 
@@ -254,7 +263,7 @@ def from_requests_prepared(prepared_request) -> BurpRequest:
     body = ""
     if prepared_request.body:
         if isinstance(prepared_request.body, bytes):
-            body = prepared_request.body.decode('utf-8', errors='replace')
+            body = prepared_request.body.decode('latin-1')
         else:
             body = str(prepared_request.body)
     
